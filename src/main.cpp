@@ -28,7 +28,7 @@ void loop() {
   Serial.println("Idle : " + String(idle));
 
   // idle 2 minutes
-//  if (idle >= 60) {
+ if (idle >= 60) {
     float temperature = dht.readTemperature();
 
     if (isnan(temperature)) {
@@ -41,7 +41,7 @@ void loop() {
     Serial.println(" °C");
 
     if (!waterValveOpen && temperature > 27) {
-      waterValve.write(90);
+      waterValve.write(180);
       waterValveOpen = true;
       idle = 0;
       Serial.println("Valve opened");
@@ -51,6 +51,6 @@ void loop() {
       idle = 0;
       Serial.println("Valve closed");
     }
-//  }
-//  idle++;
+ }
+ idle++;
 }
