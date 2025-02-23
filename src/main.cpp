@@ -16,6 +16,7 @@ void setup() {
   dht.begin();
 
   waterValve.attach(SERVO_PIN);
+  waterValve.write(0);
 }
 
 int idle = 0;
@@ -24,13 +25,10 @@ bool waterValveOpen = false;
 void loop() {
   delay(2000);
 
-  if (waterValveOpen) {
-    waterValve.write(0);
-    waterValveOpen = false;
-  }
+  Serial.println("Idle : " + String(idle));
 
-  // idle 5 minutes
-  if (idle >= 150) {
+  // idle 2 minutes
+//  if (idle >= 60) {
     float temperature = dht.readTemperature();
 
     if (isnan(temperature)) {
@@ -42,15 +40,17 @@ void loop() {
     Serial.print(temperature);
     Serial.println(" °C");
 
-    if (temperature > 27) {
+    if (!waterValveOpen && temperature > 27) {
       waterValve.write(90);
       waterValveOpen = true;
       idle = 0;
       Serial.println("Valve opened");
     } else {
       waterValve.write(0);
+      waterValveOpen = false;
+      idle = 0;
       Serial.println("Valve closed");
     }
-  }
-  idle++;
+//  }
+//  idle++;
 }
