@@ -11,9 +11,9 @@ const char* password = "takonibu354";
 // API Endpoint
 const char* apiUrl = "https://api.gardenision.com/api";
 
-const char* serial_number = "homestaycrak1";
+const char* serial_number = "skripsiazizah";
 
-const char* bearer_token = "29|53ZwWGUVeK99CpwrBhZTe0xKp60fMzwTBsTqdQVD7efab9bf";
+const char* bearer_token = "67|PsWZsBerxoSiCTgIBBZVCpC7BzMIdfaNF1d9nuQn63c839e0";
 
 // Pin setup
 #define DHTPIN D1          // DHT22 di D1 (GPIO5)
@@ -26,17 +26,7 @@ DHT dht(DHTPIN, DHTTYPE);
 float lastTemp = 0.0;
 float lastHumidity = 0.0;
 
-// Water pump timer
-unsigned long lastPumpTime = 0;
-// const unsigned long pumpInterval = 2UL * 60UL * 1000UL; // 2 menit
-// const unsigned long pumpInterval = 1UL * 60UL * 1000UL; // 1 menit
-const unsigned long pumpInterval = 4UL * 60UL * 60UL * 1000UL; // 4 jam
-const unsigned long pumpDuration = 30UL * 1000UL; // 30 detik
-// const unsigned long pumpInterval = 4UL * 60UL * 60UL * 1000UL; // 4 jam
-// const unsigned long pumpDuration = 1UL * 60UL * 1000UL;        // 1 menit
-
 bool pumpOn = 0;
-unsigned long pumpStartTime = 0;
 
 const unsigned long tempInterval = 10UL * 60UL * 1000UL; // 10 menit
 unsigned long lastTempTime = 0;
@@ -125,17 +115,17 @@ void loop() {
   JsonArray array = doc.to<JsonArray>();
 
   JsonObject temperature = array.add<JsonObject>();
-  temperature["id"] = 1;
+  temperature["id"] = 7;
   temperature["value"] = dht.readTemperature();
   // temperature["value"] = isnan(dht.readTemperature()) ? (lastTemp ? (float)lastTemp + 1.0 : 27.0) : dht.readTemperature();
 
   JsonObject humidity = array.add<JsonObject>();
-  humidity["id"] = 2;
+  humidity["id"] = 6;
   humidity["value"] = dht.readHumidity();
   // humidity["value"] = isnan(dht.readHumidity()) ? (lastHumidity ? (float)lastHumidity + 1.0 : 50.0) : dht.readHumidity();
 
   JsonObject pump = array.add<JsonObject>();
-  pump["id"] = 3;
+  pump["id"] = 5;
   pump["value"] = pumpOn ? 1 : 0;
 
   Serial.println();
@@ -159,6 +149,7 @@ void loop() {
     Serial.print(" C, Humidity: ");
     Serial.println(String(humidity["value"]));
   }
+  
 
   // Kirim ke API kalau ada perubahan data every 10 menit
   if (lastTempTime == 0 || (now - lastTempTime >= tempInterval)) {
@@ -186,23 +177,17 @@ void loop() {
   Serial.println("// DEBUG //");
   Serial.println("PumpOn: " + String(pumpOn));
   Serial.println("now: " + String(now));
-  Serial.println("pumpStartTime: " + String(pumpStartTime));
-  Serial.println("lastPumpTime: " + String(lastPumpTime));
-  Serial.println("pumpInterval: " + String(pumpInterval));
   Serial.println("lastTemp: " + String(lastTemp));
+  Serial.println("lastHumidity: " + String(lastHumidity));
   Serial.println();
 
-  if (!pumpOn && (now - lastPumpTime >= pumpInterval) && lastTemp > 28.0) {
+  if (!pumpOn && (lastTemp > 28.0 || lastHumidity < 80)) {
     digitalWrite(RELAYPIN, LOW); // Nyalakan water pump
-    pumpStartTime = now;
     pump["value"] = 1;
     Serial.println("Water pump ON!");
-  }
-
-  else if (pumpOn && (now - pumpStartTime >= pumpDuration)) {
+  } else {
     digitalWrite(RELAYPIN, HIGH); // Matikan water pump
     pump["value"] = 0;
-    lastPumpTime = now;
     Serial.println("Water pump OFF!");
   }
 
