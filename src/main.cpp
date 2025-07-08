@@ -185,7 +185,7 @@ void loop() {
     digitalWrite(RELAYPIN, LOW); // Nyalakan water pump
     pump["value"] = 1;
     Serial.println("Water pump ON!");
-  } else {
+  } else if (pumpOn && (lastTemp < 28.0 || lastHumidity > 80)) {
     digitalWrite(RELAYPIN, HIGH); // Matikan water pump
     pump["value"] = 0;
     Serial.println("Water pump OFF!");
