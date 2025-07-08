@@ -31,6 +31,9 @@ bool pumpOn = 0;
 const unsigned long tempInterval = 10UL * 60UL * 1000UL; // 10 menit
 unsigned long lastTempTime = 0;
 
+String controlMode = "auto";  // "auto" atau "manual"
+bool pumpShouldOn = false;
+
 void sendData(int id, const char* value) {
   // add enter
   Serial.println();
@@ -89,6 +92,55 @@ void sendData(int id, const char* value) {
 
   } else {
     Serial.println("WiFi not connected");
+  }
+}
+
+void fetchPumpControlStatus(int id) {
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    HTTPClient http;
+    String url = String(apiUrl) + "/device/" + String(serial_number) + "/module/" + String(id) + "/settings";
+
+    if (!http.begin(client, url)) {
+      Serial.println("HTTP GET failed!");
+      return;
+    }
+
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-Requested-With", "XMLHttpRequest");
+    http.addHeader("Authorization", "Bearer " + String(bearer_token));
+    int httpCode = http.GET();
+
+    if (httpCode == 200) {
+      String payload = http.getString();
+      Serial.println("Config fetched: " + payload);
+
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, payload);
+
+      if (!error) {
+        JsonArray arr = doc.as<JsonArray>();
+
+        for (JsonObject item : arr) {
+          if (item["key"] == "value" && item["active"] == true) {
+            controlMode = "manual";
+            pumpShouldOn = item["value"];
+            Serial.println("Control mode: " + controlMode);
+          } else {
+            controlMode = "auto";
+            pumpShouldOn = false;
+          }
+        }
+      }
+
+    } else {
+      Serial.print("Failed to fetch config, code: ");
+      Serial.println(httpCode);
+    }
+
+    http.end();
   }
 }
 
@@ -181,22 +233,35 @@ void loop() {
   Serial.println("lastHumidity: " + String(lastHumidity));
   Serial.println();
 
-  if (!pumpOn && (lastTemp > 28.0 || lastHumidity < 80)) {
-    digitalWrite(RELAYPIN, LOW); // Nyalakan water pump
-    pump["value"] = 1;
-    Serial.println("Water pump ON!");
-  } else if (pumpOn && (lastTemp < 28.0 || lastHumidity > 80)) {
-    digitalWrite(RELAYPIN, HIGH); // Matikan water pump
-    pump["value"] = 0;
-    Serial.println("Water pump OFF!");
-  }
+  fetchPumpControlStatus(pump["id"]);
+  if (controlMode == "manual") {
+    if (pumpShouldOn && !pumpOn) {
+      digitalWrite(RELAYPIN, LOW); // Nyalakan water pump
+      pump["value"] = 1;
+      Serial.println("Water pump ON!");
+    } else if (!pumpShouldOn && pumpOn) {
+      digitalWrite(RELAYPIN, HIGH); // Matikan water pump
+      pump["value"] = 0;
+      Serial.println("Water pump OFF!");
+    }
+  } else {
+    if (!pumpOn && (lastTemp > 28.0 || lastHumidity < 80)) {
+      digitalWrite(RELAYPIN, LOW); // Nyalakan water pump
+      pump["value"] = 1;
+      Serial.println("Water pump ON!");
+    } else if (pumpOn && (lastTemp < 28.0 || lastHumidity > 80)) {
+      digitalWrite(RELAYPIN, HIGH); // Matikan water pump
+      pump["value"] = 0;
+      Serial.println("Water pump OFF!");
+    }
 
-  if (pump["value"] != pumpOn) {
-    Serial.println("Sending pump data : " + String(pump["value"]) + " => " + String(pumpOn));
-    sendData(pump["id"], String(pump["value"]).c_str());
-    pumpOn = pump["value"];
+    if (pump["value"] != pumpOn) {
+      Serial.println("Sending pump data : " + String(pump["value"]) + " => " + String(pumpOn));
+      sendData(pump["id"], String(pump["value"]).c_str());
+      pumpOn = pump["value"];
+    }
+    doc.clear();
   }
-  doc.clear();
 
   // delay(600000);
   delay(1000);
