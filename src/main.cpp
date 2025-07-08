@@ -41,6 +41,9 @@ unsigned long pumpStartTime = 0;
 const unsigned long tempInterval = 10UL * 60UL * 1000UL; // 10 menit
 unsigned long lastTempTime = 0;
 
+String controlMode = "auto";  // "auto" atau "manual"
+bool pumpShouldOn = false;
+
 void sendData(int id, const char* value) {
   // add enter
   Serial.println();
@@ -99,6 +102,45 @@ void sendData(int id, const char* value) {
 
   } else {
     Serial.println("WiFi not connected");
+  }
+}
+
+void fetchPumpControlStatus(int id) {
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    HTTPClient http;
+    String url = String(apiUrl) + "/device/" + String(serial_number) + "/module/" + String(id) + "/setting";
+
+    if (!http.begin(client, url)) {
+      Serial.println("HTTP GET failed!");
+      return;
+    }
+
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-Requested-With", "XMLHttpRequest");
+    http.addHeader("Authorization", "Bearer " + String(bearer_token));
+    int httpCode = http.GET();
+
+    if (httpCode == 200) {
+      String payload = http.getString();
+      Serial.println("Config fetched: " + payload);
+
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, payload);
+
+      if (!error) {
+        if (doc.containsKey("mode")) controlMode = doc["mode"].as<String>();
+        if (doc.containsKey("water_pump")) pumpShouldOn = doc["water_pump"];
+      }
+
+    } else {
+      Serial.print("Failed to fetch config, code: ");
+      Serial.println(httpCode);
+    }
+
+    http.end();
   }
 }
 
