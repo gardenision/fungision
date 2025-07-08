@@ -111,7 +111,7 @@ void fetchPumpControlStatus(int id) {
     client.setInsecure();
 
     HTTPClient http;
-    String url = String(apiUrl) + "/device/" + String(serial_number) + "/module/" + String(id) + "/setting";
+    String url = String(apiUrl) + "/device/" + String(serial_number) + "/module/" + String(id) + "/settings";
 
     if (!http.begin(client, url)) {
       Serial.println("HTTP GET failed!");
@@ -131,8 +131,18 @@ void fetchPumpControlStatus(int id) {
       DeserializationError error = deserializeJson(doc, payload);
 
       if (!error) {
-        if (doc.containsKey("mode")) controlMode = doc["mode"].as<String>();
-        if (doc.containsKey("water_pump")) pumpShouldOn = doc["water_pump"];
+        JsonArray arr = doc.as<JsonArray>();
+
+        for (JsonObject item : arr) {
+          if (item["key"] == "value" && item["active"] == true) {
+            controlMode = "manual";
+            pumpShouldOn = item["value"];
+            Serial.println("Control mode: " + controlMode);
+          } else {
+            controlMode = "auto";
+            pumpShouldOn = false;
+          }
+        }
       }
 
     } else {
