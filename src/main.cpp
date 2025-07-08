@@ -234,26 +234,39 @@ void loop() {
   Serial.println("lastTemp: " + String(lastTemp));
   Serial.println();
 
-  if (!pumpOn && (now - lastPumpTime >= pumpInterval) && lastTemp > 28.0) {
-    digitalWrite(RELAYPIN, LOW); // Nyalakan water pump
-    pumpStartTime = now;
-    pump["value"] = 1;
-    Serial.println("Water pump ON!");
+  fetchPumpControlStatus(pump["id"]);
+  if (controlMode == "manual") {
+    if (pumpShouldOn && !pumpOn) {
+      digitalWrite(RELAYPIN, LOW); // Nyalakan water pump
+      pump["value"] = 1;
+      Serial.println("Water pump ON!");
+    } else if (!pumpShouldOn && pumpOn) {
+      digitalWrite(RELAYPIN, HIGH); // Matikan water pump
+      pump["value"] = 0;
+      Serial.println("Water pump OFF!");
+    }
+  } else {
+    if (!pumpOn && (now - lastPumpTime >= pumpInterval) && lastTemp > 28.0) {
+      digitalWrite(RELAYPIN, LOW); // Nyalakan water pump
+      pumpStartTime = now;
+      pump["value"] = 1;
+      Serial.println("Water pump ON!");
+    }
+  
+    else if (pumpOn && (now - pumpStartTime >= pumpDuration)) {
+      digitalWrite(RELAYPIN, HIGH); // Matikan water pump
+      pump["value"] = 0;
+      lastPumpTime = now;
+      Serial.println("Water pump OFF!");
+    }
+  
+    if (pump["value"] != pumpOn) {
+      Serial.println("Sending pump data : " + String(pump["value"]) + " => " + String(pumpOn));
+      sendData(pump["id"], String(pump["value"]).c_str());
+      pumpOn = pump["value"];
+    }
+    doc.clear();
   }
-
-  else if (pumpOn && (now - pumpStartTime >= pumpDuration)) {
-    digitalWrite(RELAYPIN, HIGH); // Matikan water pump
-    pump["value"] = 0;
-    lastPumpTime = now;
-    Serial.println("Water pump OFF!");
-  }
-
-  if (pump["value"] != pumpOn) {
-    Serial.println("Sending pump data : " + String(pump["value"]) + " => " + String(pumpOn));
-    sendData(pump["id"], String(pump["value"]).c_str());
-    pumpOn = pump["value"];
-  }
-  doc.clear();
 
   // delay(600000);
   delay(1000);
