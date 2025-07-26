@@ -136,7 +136,7 @@ void fetchPumpControlStatus(int id) {
         for (JsonObject item : arr) {
           if (item["key"] == "value" && item["active"] == true) {
             controlMode = "manual";
-            pumpShouldOn = item["value"];
+            pumpShouldOn = String(item["value"]) == "1" ? true : false;
             Serial.println("Control mode: " + controlMode);
           } else {
             controlMode = "auto";
@@ -249,11 +249,11 @@ void loop() {
     if (pumpShouldOn && !pumpOn) {
       digitalWrite(RELAYPIN, LOW); // Nyalakan water pump
       pump["value"] = 1;
-      Serial.println("Water pump ON!");
+      Serial.println("Water pump ON from manual mode!");
     } else if (!pumpShouldOn && pumpOn) {
       digitalWrite(RELAYPIN, HIGH); // Matikan water pump
       pump["value"] = 0;
-      Serial.println("Water pump OFF!");
+      Serial.println("Water pump OFF from manual mode!");
     }
   } else {
     if (!pumpOn && (now - lastPumpTime >= pumpInterval) && lastTemp > 28.0) {
@@ -268,15 +268,15 @@ void loop() {
       pump["value"] = 0;
       lastPumpTime = now;
       Serial.println("Water pump OFF!");
-    }
-  
-    if (pump["value"] != pumpOn) {
-      Serial.println("Sending pump data : " + String(pump["value"]) + " => " + String(pumpOn));
-      sendData(pump["id"], String(pump["value"]).c_str());
-      pumpOn = pump["value"];
-    }
-    doc.clear();
+    } 
   }
+
+  if (pump["value"] != pumpOn) {
+    Serial.println("Sending pump data : " + String(pump["value"]) + " => " + String(pumpOn));
+    sendData(pump["id"], String(pump["value"]).c_str());
+    pumpOn = pump["value"];
+  }
+  doc.clear();
 
   // delay(600000);
   delay(1000);
